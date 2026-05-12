@@ -60,5 +60,6 @@ def init_db():
     from models.lab_test.core_test_models import CoreLabTest
     from models.lab_test.lab_test_inventory_models import TestInventory
     from models.lab_test.test_package_models import TestPackage
+    from models.about_us.about_us_models import AboutUs
     Base.metadata.create_all(bind=engine)
     print("Tables created successfully.")
