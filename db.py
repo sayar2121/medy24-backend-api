@@ -57,5 +57,6 @@ def get_db():
 
 def init_db():
     from models.auth.patho_lab_user_models import PathoLabUser
+    from models.lab_test.core_test_models import CoreLabTest
     Base.metadata.create_all(bind=engine)
     print("Tables created successfully.")

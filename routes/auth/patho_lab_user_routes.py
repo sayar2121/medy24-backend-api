@@ -66,7 +66,8 @@ async def signup(
         emergency_contact_number=emergency_contact_number,
         whatsapp_number=whatsapp_number,
         terms_conditions_accepted=terms_conditions_accepted,
-        privacy_policy_accepted=privacy_policy_accepted
+        privacy_policy_accepted=privacy_policy_accepted,
+        status="active"
     )
 
     db.add(new_user)
@@ -81,6 +82,12 @@ async def login(email: str = Form(...), password: str = Form(...), db: Session =
     if not user or not verify_password(password, user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
     
+    if user.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"Your account is {user.status}. Please contact support."
+        )
+    
     user.last_login_at = datetime.now()
     db.commit()
     
@@ -93,14 +100,58 @@ async def login(email: str = Form(...), password: str = Form(...), db: Session =
         }
     }
 
-@router.get("/{lab_id}")
+@router.get("/get-by/{lab_id}")
 async def get_by_id(lab_id: str, db: Session = Depends(get_db)):
     user = db.query(PathoLabUser).filter(PathoLabUser.lab_id == lab_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Lab not found")
+    
+    if user.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"Access denied. Account status: {user.status}"
+        )
+        
     return user
+    
+@router.get("/get-all")
+async def get_all_labs(
+    skip: int = 0, 
+    limit: int = 100, 
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+    whatsapp: Optional[str] = None,
+    address: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(PathoLabUser)
+    
+    if name:
+        query = query.filter(PathoLabUser.lab_name.ilike(f"%{name}%"))
+    if email:
+        query = query.filter(PathoLabUser.email_address.ilike(f"%{email}%"))
+    if phone:
+        query = query.filter(PathoLabUser.mobile_number.ilike(f"%{phone}%"))
+    if whatsapp:
+        query = query.filter(PathoLabUser.whatsapp_number.ilike(f"%{whatsapp}%"))
+    if address:
+        query = query.filter(PathoLabUser.address.ilike(f"%{address}%"))
+    if status and status != "All":
+        query = query.filter(PathoLabUser.status == status.lower())
+        
+    total = query.count()
+    labs = query.offset(skip).limit(limit).all()
+    
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "labs": labs
+    }
 
-@router.put("/{lab_id}")
+@router.put("/update-by/{lab_id}")
 async def update_by_id(
     lab_id: str,
     lab_name: Optional[str] = Form(None),
@@ -118,6 +169,7 @@ async def update_by_id(
     lab_logo: Optional[UploadFile] = File(None),
     registration_certificate: Optional[UploadFile] = File(None),
     bank_passbook: Optional[UploadFile] = File(None),
+    status: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     user = db.query(PathoLabUser).filter(PathoLabUser.lab_id == lab_id).first()
@@ -136,6 +188,7 @@ async def update_by_id(
     if whatsapp_number: user.whatsapp_number = whatsapp_number
     if terms_conditions_accepted is not None: user.terms_conditions_accepted = terms_conditions_accepted
     if privacy_policy_accepted is not None: user.privacy_policy_accepted = privacy_policy_accepted
+    if status: user.status = status
 
     if lab_logo:
         user.lab_logo_url = save_and_compress_file(lab_logo, lab_id, "lab_logo")

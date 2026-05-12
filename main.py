@@ -1,6 +1,8 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from routes.auth.patho_lab_user_routes import router as patho_lab_router
+from routes.lab_test.core_test_routes import router as core_test_router
 from db import init_db
 import uvicorn
 import os
@@ -22,8 +24,18 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Create uploads directory if not exists
 os.makedirs("uploads/auth", exist_ok=True)
+os.makedirs("uploads/lab_tests", exist_ok=True)
 
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -38,6 +50,7 @@ async def root():
 
 # Register routers
 app.include_router(patho_lab_router)
+app.include_router(core_test_router)
 
 if __name__ == "__main__":
     # Running on 0.0.0.0 to make it accessible on all network interfaces
