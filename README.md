@@ -41,13 +41,4 @@ python main.py
 ```
 The server will start on `http://0.0.0.0:8000`. You can access the API documentation at `http://localhost:8000/docs`.
 
-## API Endpoints
 
-### Patho Lab Authentication
-- `POST /auth/patho-lab/signup`: Register a new lab (form-data).
-- `POST /auth/patho-lab/login`: Login with email and password (form-data).
-- `GET /auth/patho-lab/{lab_id}`: Get lab details by Lab ID.
-- `PUT /auth/patho-lab/{lab_id}`: Update lab details (form-data).
-
-### General
-- `GET /health`: System health check.

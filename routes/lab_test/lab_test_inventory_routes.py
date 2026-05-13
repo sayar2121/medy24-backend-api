@@ -119,6 +119,46 @@ async def get_tests_by_lab_id(
         "data": result_data
     }
 
+@router.get("/get-all")
+async def get_all_tests(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=100),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all test inventory entries with pagination
+    """
+    offset = (page - 1) * limit
+    
+    # Query with join to get core test parameters
+    tests = db.query(TestInventory, CoreLabTest).join(
+        CoreLabTest, TestInventory.core_test_id == CoreLabTest.core_test_id
+    ).offset(offset).limit(limit).all()
+    
+    if not tests:
+        return {
+            "total": 0,
+            "page": page,
+            "limit": limit,
+            "data": []
+        }
+    
+    # Combine test inventory and core test data
+    result_data = []
+    for test_inventory, core_test in tests:
+        test_dict = test_inventory.to_dict()
+        test_dict["core_test_details"] = core_test.to_dict()
+        result_data.append(test_dict)
+    
+    total = db.query(TestInventory).count()
+    
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "data": result_data
+    }
+
 @router.put("/update-by/{test_id}")
 async def update_test_inventory_by_id(
     test_id: str,
