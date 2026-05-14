@@ -9,6 +9,8 @@ from routes.lab_test.test_packaage_routes import router as test_package_router
 from routes.about_us.about_us_routes import router as about_us_router
 from routes.medicine.core_medicine_routes import router as medicine_router
 from routes.medicine.medicine_inventory_routes import router as medicine_inventory_router
+from routes.terms_conditions.terms_conditions_routes import router as terms_conditions_router
+from routes.privacy_policy.privacy_policy_routes import router as privacy_policy_router
 from db import init_db
 import uvicorn
 import os
@@ -66,6 +68,8 @@ app.include_router(test_package_router)
 app.include_router(about_us_router)
 app.include_router(medicine_router)
 app.include_router(medicine_inventory_router)
+app.include_router(terms_conditions_router)
+app.include_router(privacy_policy_router)
 
 if __name__ == "__main__":
     # Running on 0.0.0.0 to make it accessible on all network interfaces

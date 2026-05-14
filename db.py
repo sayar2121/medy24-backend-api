@@ -64,5 +64,7 @@ def init_db():
     from models.about_us.about_us_models import AboutUs
     from models.medicine.core_medicine_models import CoreMedicine
     from models.medicine.medicine_inventory_models import MedicineInventory
+    from models.terms_conditions.terms_conditions_models import TermsConditions
+    from models.privacy_policy.privacy_policy_models import PrivacyPolicy
     Base.metadata.create_all(bind=engine)
     print("Tables created successfully.")
