@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field
@@ -10,6 +10,8 @@ from db import get_db
 from models.auth.customer_user_models import CustomerUser
 from services.auth.customer.customer_id_generator import generate_customer_id
 from services.auth.customer.profile_photo_upload import upload_profile_photo
+
+VALID_CUSTOMER_STATUSES = {"active", "suspended"}
 
 try:
     import firebase_admin
@@ -26,8 +28,38 @@ class SendOTPRequest(BaseModel):
     phone_number: str = Field(..., description="Phone number to send OTP to")
 
 class AddressInput(BaseModel):
-    address: str
-    type: str = Field(default="home", description="Address type: home, office, other")
+    address_1: Optional[str] = Field(None, description="Primary address line")
+    latitude: float = Field(..., description="Latitude")
+    longitude: float = Field(..., description="Longitude")
+    street_address: str = Field(..., description="Street address")
+
+
+def normalize_customer_status(status: Optional[str]) -> str:
+    normalized_status = (status or "active").strip().lower()
+
+    if normalized_status not in VALID_CUSTOMER_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail="status must be either active or suspended"
+        )
+
+    return normalized_status
+
+
+def build_saved_address(address_data: AddressInput, address_id: int) -> dict:
+    address_1 = address_data.address_1.strip() if address_data.address_1 else ""
+
+    if not address_1:
+        raise HTTPException(status_code=400, detail="address_1 is required")
+
+    return {
+        "id": address_id,
+        "address_1": address_1,
+        "latitude": address_data.latitude,
+        "longitude": address_data.longitude,
+        "street_address": address_data.street_address.strip(),
+        "created_at": datetime.utcnow().isoformat()
+    }
 
 class VerifyOTPRequest(BaseModel):
     token: str = Field(..., description="Firebase ID token")
@@ -36,6 +68,7 @@ class VerifyOTPRequest(BaseModel):
     email: Optional[str] = Field(None, description="Email address")
     alternative_phone_no: Optional[str] = Field(None, description="Alternative phone number")
     saved_addresses: Optional[List[dict]] = Field(None, description="List of saved addresses")
+    status: Optional[str] = Field("active", description="Customer status: active or suspended")
 
 router = APIRouter(prefix="/customers", tags=["Customer Auth"])
 
@@ -60,7 +93,8 @@ async def check_phone(
         "message": "Phone check completed",
         "phone_number": phone_number,
         "exists": user is not None,
-        "user_id": user.customer_id if user else None
+        "user_id": user.customer_id if user else None,
+        "status": user.status if user else None
     }
 
 
@@ -96,6 +130,7 @@ async def verify_otp(
     full_name: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
     alternative_phone_no: Optional[str] = Form(None),
+    status: Optional[str] = Form("active"),
     profile_photo: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -143,6 +178,9 @@ async def verify_otp(
         ).first()
         
         if user:
+            if user.status == "suspended":
+                raise HTTPException(status_code=403, detail="Customer account is suspended")
+
             # LOGIN FLOW: User exists
             backend_token = generate_backend_token(user.customer_id)
             
@@ -160,6 +198,9 @@ async def verify_otp(
                     status_code=400, 
                     detail="Full name is required for new user registration"
                 )
+
+            # New signups always start active; status can be changed later by admin/update flows.
+            customer_status = "active"
             
             # Generate customer ID
             customer_id = generate_customer_id()
@@ -179,6 +220,7 @@ async def verify_otp(
                 full_name=full_name.strip(),
                 email=email,
                 alternative_phone_no=alternative_phone_no,
+                status=customer_status,
                 saved_addresses=[],
                 profile_photo=profile_photo_url
             )
@@ -234,6 +276,7 @@ async def update_profile(
     full_name: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
     alternative_phone_no: Optional[str] = Form(None),
+    status: Optional[str] = Form(None),
     profile_photo: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -256,6 +299,10 @@ async def update_profile(
     # Update alternative phone number if provided
     if alternative_phone_no:
         user.alternative_phone_no = alternative_phone_no
+
+    # Update status if provided
+    if status is not None:
+        user.status = normalize_customer_status(status)
     
     # Update profile photo if provided
     if profile_photo:
@@ -295,12 +342,7 @@ async def add_address(
         user.saved_addresses = []
     
     # Create new address entry
-    new_address = {
-        "id": len(user.saved_addresses) + 1,
-        "address": address_data.address,
-        "type": address_data.type,
-        "created_at": datetime.utcnow().isoformat()
-    }
+    new_address = build_saved_address(address_data, len(user.saved_addresses) + 1)
     
     user.saved_addresses.append(new_address)
     db.commit()
@@ -317,15 +359,35 @@ async def add_address(
 async def delete_address(
     customer_id: str,
     address_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    token: str = Header(..., description="Firebase ID token")
 ):
     """
     Delete a saved address by address ID
     """
+    # Verify Firebase token and ownership
+    if not FIREBASE_AVAILABLE:
+        raise HTTPException(status_code=500, detail="Firebase not configured")
+
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        firebase_phone = decoded_token.get("phone_number", "")
+        firebase_phone_normalized = firebase_phone.replace(" ", "").replace("-", "")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Firebase token: {e}")
+
     user = db.query(CustomerUser).filter(CustomerUser.customer_id == customer_id).first()
     
     if not user:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Ensure token belongs to the same user
+    phone_normalized = user.phone_number.replace(" ", "").replace("-", "")
+    if not phone_normalized.startswith("+"):
+        phone_normalized = "+91" + phone_normalized.lstrip("0")
+
+    if firebase_phone_normalized != phone_normalized:
+        raise HTTPException(status_code=403, detail="Token does not belong to the specified customer")
     
     if not user.saved_addresses:
         raise HTTPException(status_code=404, detail="No addresses found")
