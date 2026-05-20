@@ -203,6 +203,10 @@ async def verify_otp(
         # Verify the Firebase ID token
         decoded_token = firebase_auth.verify_id_token(token)
         firebase_phone = decoded_token.get("phone_number", "")
+        firebase_uid = decoded_token.get("uid", "")
+        
+        if not firebase_uid:
+            raise HTTPException(status_code=401, detail="Invalid Firebase token: missing uid")
         
         # Normalize both phone numbers for comparison
         # Remove spaces and dashes
@@ -223,16 +227,24 @@ async def verify_otp(
         # Store the normalized phone number for database
         phone_number = phone_normalized
         
-        # Check if user exists
+        # Check if user exists by phone number
         user = db.query(CustomerUser).filter(
             CustomerUser.phone_number == phone_number
         ).first()
         
         if user:
+            # LOGIN FLOW: User exists
+            # Validate that the firebase_uid matches
+            if user.firebase_uid != firebase_uid:
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Firebase UID mismatch. This phone number is associated with a different account."
+                )
+            
             if user.status == "suspended":
                 raise HTTPException(status_code=403, detail="Customer account is suspended")
 
-            # LOGIN FLOW: User exists
+            # Generate backend token
             backend_token = generate_backend_token(user.customer_id)
             
             return {
@@ -248,6 +260,17 @@ async def verify_otp(
                 raise HTTPException(
                     status_code=400, 
                     detail="Full name is required for new user registration"
+                )
+
+            # Check if firebase_uid already exists (user registered with different phone)
+            existing_firebase_user = db.query(CustomerUser).filter(
+                CustomerUser.firebase_uid == firebase_uid
+            ).first()
+            
+            if existing_firebase_user:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="This Firebase account is already registered with a different phone number"
                 )
 
             # New signups always start active; status can be changed later by admin/update flows.
@@ -267,6 +290,7 @@ async def verify_otp(
             # Create new customer user
             new_user = CustomerUser(
                 customer_id=customer_id,
+                firebase_uid=firebase_uid,
                 phone_number=phone_number,
                 full_name=full_name.strip(),
                 email=email,
@@ -302,7 +326,7 @@ async def verify_otp(
         raise HTTPException(status_code=500, detail=f"Authorization error: {str(e)}")
 
 
-@router.get("/profile/{customer_id}")
+@router.get("/get-profile/{customer_id}")
 async def get_profile(
     customer_id: str,
     db: Session = Depends(get_db)
@@ -372,7 +396,7 @@ async def update_profile(
     }
 
 
-@router.post("/addresses/{customer_id}")
+@router.post("/add-addresses/{customer_id}")
 async def add_address(
     customer_id: str,
     address_data: AddressInput,
@@ -406,7 +430,7 @@ async def add_address(
     }
 
 
-@router.delete("/addresses/{customer_id}/{address_id}")
+@router.delete("/delete-address/{customer_id}/{address_id}")
 async def delete_address(
     customer_id: str,
     address_id: int,
@@ -454,7 +478,7 @@ async def delete_address(
         "user": user.to_dict()
     }
 
-
+# Utility function to generate JWT token for backend authentication
 def generate_backend_token(customer_id: str) -> str:
     """
     Generate a JWT token for backend authentication

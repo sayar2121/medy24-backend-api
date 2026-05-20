@@ -22,7 +22,7 @@ class PathoLabUser(Base):
     whatsapp_number = Column(String, nullable=True)
     terms_conditions_accepted = Column(Boolean, default=False, nullable=False)
     privacy_policy_accepted = Column(Boolean, default=False, nullable=False)
-    status = Column(String, default="active", nullable=False) # active, suspended, terminated
+    status = Column(String, default="pending", nullable=False) # active, suspended, terminated
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

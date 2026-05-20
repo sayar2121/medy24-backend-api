@@ -9,12 +9,23 @@ from services.medicine.medicine_photo_upload import upload_medicine_photo, delet
 
 router = APIRouter(prefix="/medicines", tags=["Core Medicines"])
 
+def calculate_final_selling_price(mrp: float, discount_percent: Optional[float] = None) -> float:
+    """
+    Calculate final selling price based on MRP and discount percent
+    If discount_percent is None, final_selling_price = mrp
+    Otherwise, final_selling_price = mrp - (mrp * discount_percent / 100)
+    """
+    if discount_percent is None:
+        return mrp
+    return mrp - (mrp * discount_percent / 100)
+
 @router.post("/create")
 async def create_medicine(
     medicine_name: str = Form(...),
     medicine_category: str = Form(...),
     medicine_quantity: str = Form(...),
     mrp: float = Form(...),
+    discount_percent: Optional[float] = Form(None),
     medicine_description: Optional[str] = Form(None),
     medicine_composition: Optional[str] = Form(None),
     precautions: Optional[str] = Form(None),
@@ -47,6 +58,9 @@ async def create_medicine(
     # Parse precautions as JSON
     precautions_json = json.loads(precautions) if precautions else []
     
+    # Calculate final selling price
+    final_selling_price = calculate_final_selling_price(mrp, discount_percent)
+    
     # Create new medicine record
     new_medicine = CoreMedicine(
         medicine_id=medicine_id,
@@ -54,6 +68,8 @@ async def create_medicine(
         medicine_category=medicine_category,
         medicine_quantity=medicine_quantity,
         mrp=mrp,
+        discount_percent=discount_percent,
+        final_selling_price=final_selling_price,
         medicine_description=medicine_description,
         medicine_composition=medicine_composition,
         precautions=precautions_json,
@@ -103,6 +119,7 @@ async def update_medicine_by_id(
     medicine_category: Optional[str] = Form(None),
     medicine_quantity: Optional[str] = Form(None),
     mrp: Optional[float] = Form(None),
+    discount_percent: Optional[float] = Form(None),
     medicine_description: Optional[str] = Form(None),
     medicine_composition: Optional[str] = Form(None),
     precautions: Optional[str] = Form(None),
@@ -110,7 +127,8 @@ async def update_medicine_by_id(
     db: Session = Depends(get_db)
 ):
     """
-    Update medicine by ID. If new photo is provided, old photo will be replaced
+    Update medicine by ID. If new photo is provided, old photo will be replaced.
+    Final selling price is auto-calculated based on MRP and discount percent.
     """
     medicine = db.query(CoreMedicine).filter(CoreMedicine.medicine_id == medicine_id).first()
     if not medicine:
@@ -142,12 +160,20 @@ async def update_medicine_by_id(
         medicine.medicine_quantity = medicine_quantity
     if mrp is not None:
         medicine.mrp = mrp
+    if discount_percent is not None:
+        medicine.discount_percent = discount_percent
     if medicine_description is not None:
         medicine.medicine_description = medicine_description
     if medicine_composition is not None:
         medicine.medicine_composition = medicine_composition
     if precautions is not None:
         medicine.precautions = json.loads(precautions)
+    
+    # Recalculate final_selling_price if mrp or discount_percent changed
+    if mrp is not None or discount_percent is not None:
+        updated_mrp = mrp if mrp is not None else medicine.mrp
+        updated_discount = discount_percent if discount_percent is not None else medicine.discount_percent
+        medicine.final_selling_price = calculate_final_selling_price(updated_mrp, updated_discount)
     
     # Handle photo update - delete old and upload new
     if medicine_photo:

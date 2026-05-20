@@ -67,7 +67,7 @@ async def signup(
         whatsapp_number=whatsapp_number,
         terms_conditions_accepted=terms_conditions_accepted,
         privacy_policy_accepted=privacy_policy_accepted,
-        status="active"
+        status="pending"  # New users start with pending status until approved by admin
     )
 
     db.add(new_user)

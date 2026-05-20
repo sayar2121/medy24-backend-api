@@ -8,6 +8,7 @@ class CustomerUser(Base):
     __tablename__ = "customer_users"
 
     customer_id = Column(String, primary_key=True, index=True)
+    firebase_uid = Column(String, unique=True, nullable=False, index=True)
     phone_number = Column(String, unique=True, nullable=False, index=True)
     alternative_phone_no = Column(String, nullable=True)
     full_name = Column(String, nullable=True)
@@ -22,6 +23,7 @@ class CustomerUser(Base):
     def to_dict(self):
         return {
             "customer_id": self.customer_id,
+            "firebase_uid": self.firebase_uid,
             "phone_number": self.phone_number,
             "alternative_phone_no": self.alternative_phone_no,
             "full_name": self.full_name,

@@ -22,6 +22,10 @@ async def create_test_inventory(
     """
     Create a new test inventory entry for a pathology lab
     """
+    # Validate lab_id is not empty
+    if not lab_id or lab_id.strip() == "":
+        raise HTTPException(status_code=400, detail="Lab ID is required, Please Login Again and try adding again")
+    
     # Validate core test exists
     lab = db.query(CoreLabTest).filter(CoreLabTest.core_test_id == core_test_id).first()
     if not lab:
@@ -34,6 +38,14 @@ async def create_test_inventory(
     ).first()
     if existing_test:
         raise HTTPException(status_code=400, detail="This test is already present in your inventory")
+    
+    # Validate price
+    if price <= 0:
+        raise HTTPException(status_code=400, detail="Price must be greater than 0")
+    
+    # Validate discount percent
+    if discount_percent < 0 or discount_percent > 100:
+        raise HTTPException(status_code=400, detail="Discount percent must be between 0 and 100")
     
     # Generate test ID
     test_id = generate_test_id(lab_id)
@@ -56,13 +68,19 @@ async def create_test_inventory(
     db.add(new_test)
     db.commit()
     db.refresh(new_test)
-    return new_test
+    return {
+        "message": "Test inventory added successfully",
+        "test": new_test.to_dict()
+    }
 
 @router.get("/get-by/{test_id}")
 async def get_test_by_id(test_id: str, db: Session = Depends(get_db)):
     """
     Get a specific test inventory entry by test ID with core test parameters
     """
+    if not test_id or test_id.strip() == "":
+        raise HTTPException(status_code=400, detail="test_id is required")
+    
     test = db.query(TestInventory, CoreLabTest).join(
         CoreLabTest, TestInventory.core_test_id == CoreLabTest.core_test_id
     ).filter(TestInventory.test_id == test_id).first()
@@ -74,7 +92,10 @@ async def get_test_by_id(test_id: str, db: Session = Depends(get_db)):
     test_dict = test_inventory.to_dict()
     test_dict["core_test_details"] = core_test.to_dict()
     
-    return test_dict
+    return {
+        "message": "Test inventory retrieved successfully",
+        "test": test_dict
+    }
 
 @router.get("/get-by-lab/{lab_id}")
 async def get_tests_by_lab_id(
@@ -86,21 +107,21 @@ async def get_tests_by_lab_id(
     """
     Get all test inventory entries for a specific lab with core test parameters
     """
+    if not lab_id or lab_id.strip() == "":
+        raise HTTPException(status_code=400, detail="lab_id is required")
+    
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page must be >= 1")
+    
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+    
     offset = (page - 1) * limit
     
     # Query with join to get core test parameters
     tests = db.query(TestInventory, CoreLabTest).join(
         CoreLabTest, TestInventory.core_test_id == CoreLabTest.core_test_id
     ).filter(TestInventory.lab_id == lab_id).offset(offset).limit(limit).all()
-    
-    if not tests:
-        return {
-            "total": 0,
-            "page": page,
-            "limit": limit,
-            "lab_id": lab_id,
-            "data": []
-        }
     
     # Combine test inventory and core test data
     result_data = []
@@ -112,6 +133,7 @@ async def get_tests_by_lab_id(
     total = db.query(TestInventory).filter(TestInventory.lab_id == lab_id).count()
     
     return {
+        "message": "Lab tests retrieved successfully",
         "total": total,
         "page": page,
         "limit": limit,
@@ -128,20 +150,18 @@ async def get_all_tests(
     """
     Get all test inventory entries with pagination
     """
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page must be >= 1")
+    
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+    
     offset = (page - 1) * limit
     
     # Query with join to get core test parameters
     tests = db.query(TestInventory, CoreLabTest).join(
         CoreLabTest, TestInventory.core_test_id == CoreLabTest.core_test_id
     ).offset(offset).limit(limit).all()
-    
-    if not tests:
-        return {
-            "total": 0,
-            "page": page,
-            "limit": limit,
-            "data": []
-        }
     
     # Combine test inventory and core test data
     result_data = []
@@ -153,6 +173,7 @@ async def get_all_tests(
     total = db.query(TestInventory).count()
     
     return {
+        "message": "All test inventories retrieved successfully",
         "total": total,
         "page": page,
         "limit": limit,
@@ -172,9 +193,20 @@ async def update_test_inventory_by_id(
     """
     Update a test inventory entry by test ID
     """
+    if not test_id or test_id.strip() == "":
+        raise HTTPException(status_code=400, detail="test_id is required")
+    
     test = db.query(TestInventory).filter(TestInventory.test_id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test inventory not found")
+    
+    # Validate price if provided
+    if price is not None and price <= 0:
+        raise HTTPException(status_code=400, detail="Price must be greater than 0")
+    
+    # Validate discount percent if provided
+    if discount_percent is not None and (discount_percent < 0 or discount_percent > 100):
+        raise HTTPException(status_code=400, detail="Discount percent must be between 0 and 100")
     
     if sample_collection_time:
         test.sample_collection_time = sample_collection_time
@@ -195,13 +227,19 @@ async def update_test_inventory_by_id(
     
     db.commit()
     db.refresh(test)
-    return test
+    return {
+        "message": "Test inventory updated successfully",
+        "test": test.to_dict()
+    }
 
 @router.delete("/delete-by-ids")
 async def delete_tests_by_ids(test_ids: List[str] = Body(...), db: Session = Depends(get_db)):
     """
     Delete multiple test inventory entries by their test IDs
     """
+    if not test_ids or len(test_ids) == 0:
+        raise HTTPException(status_code=400, detail="test_ids list cannot be empty")
+    
     tests = db.query(TestInventory).filter(TestInventory.test_id.in_(test_ids)).all()
     if not tests:
         raise HTTPException(status_code=404, detail="No test inventories found with provided IDs")
