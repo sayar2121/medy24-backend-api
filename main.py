@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from routes.auth.patho_lab_user_routes import router as patho_lab_router
 from routes.auth.pharma_shop_user_routes import router as pharma_shop_router
 from routes.lab_test.core_test_routes import router as core_test_router
@@ -67,6 +68,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    return {
+        "message": "Welcome to Medy24 Patho Lab API",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    favicon_path = os.path.join(os.path.dirname(__file__), "static", "medy24_logo.svg")
+    print(f"🔍 Favicon request received. Path: {favicon_path}")
+    print(f"🔍 File exists: {os.path.exists(favicon_path)}")
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path, media_type="image/svg+xml")
+    else:
+        print(f"❌ Favicon file not found at {favicon_path}")
+        raise FileNotFoundError(f"Favicon not found at {favicon_path}")
+
 # Create uploads directory if not exists
 os.makedirs("uploads/auth", exist_ok=True)
 os.makedirs("uploads/lab_tests", exist_ok=True)
@@ -77,13 +97,8 @@ os.makedirs("uploads/pharma_shop", exist_ok=True)
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-@app.get("/")
-async def root():
-    return {
-        "message": "Welcome to Medy24 Patho Lab API",
-        "docs": "/docs",
-        "health": "/health"
-    }
+# Mount static files (including favicon)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Register routers
 app.include_router(patho_lab_router)
