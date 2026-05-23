@@ -16,6 +16,7 @@ class CoreMedicine(Base):
     mrp = Column(Float, nullable=False)  # MRP in rupees
     discount_percent = Column(Float, nullable=True)  # Discount percentage
     final_selling_price = Column(Float, nullable=False)  # Auto-calculated: MRP - (MRP * discount_percent / 100)
+    prescription_required = Column(String, default="false", nullable=False)  # "true" or "false"
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
@@ -33,6 +34,7 @@ class CoreMedicine(Base):
             "mrp": self.mrp,
             "discount_percent": self.discount_percent,
             "final_selling_price": self.final_selling_price,
+            "prescription_required": self.prescription_required,
             "created_at": self.created_at,
             "updated_at": self.updated_at
         }
