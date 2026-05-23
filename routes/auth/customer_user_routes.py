@@ -11,7 +11,7 @@ from models.auth.customer_user_models import CustomerUser
 from services.auth.customer.customer_id_generator import generate_customer_id
 from services.auth.customer.profile_photo_upload import upload_profile_photo
 
-VALID_CUSTOMER_STATUSES = {"active", "suspended"}
+VALID_CUSTOMER_STATUSES = {"active", "suspended", "terminated"}
 
 try:
     import firebase_admin
@@ -48,7 +48,7 @@ def normalize_customer_status(status: Optional[str]) -> str:
     if normalized_status not in VALID_CUSTOMER_STATUSES:
         raise HTTPException(
             status_code=400,
-            detail="status must be either active or suspended"
+            detail="status must be one of: active, suspended, or terminated"
         )
 
     return normalized_status
@@ -76,7 +76,7 @@ class VerifyOTPRequest(BaseModel):
     email: Optional[str] = Field(None, description="Email address")
     alternative_phone_no: Optional[str] = Field(None, description="Alternative phone number")
     saved_addresses: Optional[List[dict]] = Field(None, description="List of saved addresses")
-    status: Optional[str] = Field("active", description="Customer status: active or suspended")
+    status: Optional[str] = Field("active", description="Customer status: active, suspended, or terminated")
 
 router = APIRouter(prefix="/customers", tags=["Customer Auth"])
 
@@ -190,10 +190,13 @@ async def verify_otp(
     
     For new users (signup):
         - Requires: token, phone_number, full_name
-        - Optional: email, alternative_phone_no, profile_photo
+        - Optional: email, alternative_phone_no, profile_photo, status
     
     For existing users (login):
         - Requires: token, phone_number
+        - Note: Suspended and terminated accounts cannot login
+    
+    Status values: "active", "suspended", or "terminated"
     """
     
     if not FIREBASE_AVAILABLE:
@@ -243,6 +246,9 @@ async def verify_otp(
             
             if user.status == "suspended":
                 raise HTTPException(status_code=403, detail="Customer account is suspended")
+            
+            if user.status == "terminated":
+                raise HTTPException(status_code=403, detail="Customer account is terminated")
 
             # Generate backend token
             backend_token = generate_backend_token(user.customer_id)
@@ -357,6 +363,13 @@ async def update_profile(
 ):
     """
     Update customer profile information
+    
+    Parameters:
+    - full_name: Customer's full name (optional)
+    - email: Customer's email address (optional)
+    - alternative_phone_no: Alternative phone number (optional)
+    - status: Customer status - "active", "suspended", or "terminated" (optional)
+    - profile_photo: Profile photo file (optional)
     """
     user = db.query(CustomerUser).filter(CustomerUser.customer_id == customer_id).first()
     
