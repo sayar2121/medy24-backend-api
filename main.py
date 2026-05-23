@@ -13,6 +13,7 @@ from routes.medicine.core_medicine_routes import router as medicine_router
 from routes.terms_conditions.terms_conditions_routes import router as terms_conditions_router
 from routes.privacy_policy.privacy_policy_routes import router as privacy_policy_router
 from routes.auth.customer_user_routes import router as customer_router
+from routes.cart.cart_routes import router as cart_router
 from db import init_db
 import uvicorn
 import os
@@ -105,6 +106,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(patho_lab_router)
 app.include_router(pharma_shop_router)
 app.include_router(customer_router)
+app.include_router(cart_router)
 app.include_router(core_test_router)
 app.include_router(lab_test_inventory_router)
 app.include_router(test_package_router)
