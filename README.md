@@ -6,7 +6,7 @@ Backend system for Patho Lab management, including authentication, document uplo
 
 ### 1. Create a Virtual Environment
 ```bash
-python -m venv venv
+python3 -m venv venv
 ```
 
 ### 2. Activate the Virtual Environment

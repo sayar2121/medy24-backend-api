@@ -14,6 +14,7 @@ from routes.terms_conditions.terms_conditions_routes import router as terms_cond
 from routes.privacy_policy.privacy_policy_routes import router as privacy_policy_router
 from routes.auth.customer_user_routes import router as customer_router
 from routes.cart.cart_routes import router as cart_router
+from routes.medicine.medicine_order_websocket import router as medicine_order_ws_router
 from db import init_db
 import uvicorn
 import os
@@ -95,6 +96,7 @@ os.makedirs("uploads/lab_tests", exist_ok=True)
 os.makedirs("uploads/about_us", exist_ok=True)
 os.makedirs("uploads/medicine", exist_ok=True)
 os.makedirs("uploads/pharma_shop", exist_ok=True)
+os.makedirs("uploads/prescriptions", exist_ok=True)
 
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -113,6 +115,7 @@ app.include_router(test_package_router)
 app.include_router(test_package_booking_router)
 app.include_router(about_us_router)
 app.include_router(medicine_router)
+app.include_router(medicine_order_ws_router)
 app.include_router(terms_conditions_router)
 app.include_router(privacy_policy_router)
 

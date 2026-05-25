@@ -65,6 +65,8 @@ def init_db():
     from models.lab_test.test_package_booking_models import TestPackageBooking
     from models.about_us.about_us_models import AboutUs
     from models.medicine.core_medicine_models import CoreMedicine
+    from models.medicine.medicine_order_models import Order
+    from models.earnings.pharma_shop_earning_models import Earning
     from models.cart.cart_models import Cart
     from models.terms_conditions.terms_conditions_models import TermsConditions
     from models.privacy_policy.privacy_policy_models import PrivacyPolicy

@@ -18,8 +18,11 @@ async def signup(
     shop_password: str = Form(...),
     drug_license: UploadFile = File(...),
     pan_card: UploadFile = File(...),
-    bank_passbook: UploadFile = File(...),
     registration_certificate: UploadFile = File(...),
+    bank_account_no: str = Form(...),
+    bank_ifsc_code: str = Form(...),
+    bank_name: str = Form(...),
+    bank_account_name: str = Form(...),
     shop_alternative_phone_no: Optional[str] = Form(None),
     whatsapp_number: Optional[str] = Form(None),
     gstin_no: Optional[str] = Form(None),
@@ -40,7 +43,6 @@ async def signup(
     # Save required documents
     drug_license_url = save_and_compress_file(drug_license, shop_id, "drug_license")
     pan_card_url = save_and_compress_file(pan_card, shop_id, "pan_card")
-    bank_passbook_url = save_and_compress_file(bank_passbook, shop_id, "bank_passbook")
     registration_cert_url = save_and_compress_file(registration_certificate, shop_id, "registration_certificate")
     
     # Save optional shop photo
@@ -62,8 +64,11 @@ async def signup(
         gstin_no=gstin_no,
         drug_license_upload=drug_license_url,
         pan_card_upload=pan_card_url,
-        bank_passbook_upload=bank_passbook_url,
         registration_certificate_upload=registration_cert_url,
+        bank_account_no=bank_account_no,
+        bank_ifsc_code=bank_ifsc_code,
+        bank_name=bank_name,
+        bank_account_name=bank_account_name,
         status="pending"
     )
     
@@ -153,11 +158,14 @@ async def update_shop_by_id(
     whatsapp_number: Optional[str] = Form(None),
     gstin_no: Optional[str] = Form(None),
     shop_password: Optional[str] = Form(None),
+    bank_account_no: Optional[str] = Form(None),
+    bank_ifsc_code: Optional[str] = Form(None),
+    bank_name: Optional[str] = Form(None),
+    bank_account_name: Optional[str] = Form(None),
     status: Optional[str] = Form(None),
     shop_photo: Optional[UploadFile] = File(None),
     drug_license: Optional[UploadFile] = File(None),
     pan_card: Optional[UploadFile] = File(None),
-    bank_passbook: Optional[UploadFile] = File(None),
     registration_certificate: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -183,6 +191,14 @@ async def update_shop_by_id(
         shop.gstin_no = gstin_no
     if shop_password is not None:
         shop.shop_password = shop_password
+    if bank_account_no is not None:
+        shop.bank_account_no = bank_account_no
+    if bank_ifsc_code is not None:
+        shop.bank_ifsc_code = bank_ifsc_code
+    if bank_name is not None:
+        shop.bank_name = bank_name
+    if bank_account_name is not None:
+        shop.bank_account_name = bank_account_name
     if status is not None:
         shop.status = status
     
@@ -210,14 +226,6 @@ async def update_shop_by_id(
         # Upload new file
         shop.pan_card_upload = save_and_compress_file(pan_card, shop_id, "pan_card")
     
-    # Handle bank passbook update
-    if bank_passbook:
-        # Delete old file if exists
-        if shop.bank_passbook_upload:
-            delete_file(shop.bank_passbook_upload)
-        # Upload new file
-        shop.bank_passbook_upload = save_and_compress_file(bank_passbook, shop_id, "bank_passbook")
-    
     # Handle registration certificate update
     if registration_certificate:
         # Delete old file if exists
@@ -243,7 +251,6 @@ async def delete_shop_by_id(shop_id: str, db: Session = Depends(get_db)):
     delete_file(shop.shop_photo) if shop.shop_photo else None
     delete_file(shop.drug_license_upload) if shop.drug_license_upload else None
     delete_file(shop.pan_card_upload) if shop.pan_card_upload else None
-    delete_file(shop.bank_passbook_upload) if shop.bank_passbook_upload else None
     delete_file(shop.registration_certificate_upload) if shop.registration_certificate_upload else None
     
     # Delete shop record

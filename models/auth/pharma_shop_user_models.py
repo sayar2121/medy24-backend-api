@@ -17,8 +17,11 @@ class PharmaShopUser(Base):
     gstin_no = Column(String, nullable=True)
     drug_license_upload = Column(String, nullable=False)
     pan_card_upload = Column(String, nullable=False)
-    bank_passbook_upload = Column(String, nullable=False)
     registration_certificate_upload = Column(String, nullable=False)
+    bank_account_no = Column(String, nullable=True)
+    bank_ifsc_code = Column(String, nullable=True)
+    bank_name = Column(String, nullable=True)
+    bank_account_name = Column(String, nullable=True)
     status = Column(String, default="pending", nullable=False)  # active, terminated, pending, suspended
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -38,8 +41,11 @@ class PharmaShopUser(Base):
             "gstin_no": self.gstin_no,
             "drug_license_upload": self.drug_license_upload,
             "pan_card_upload": self.pan_card_upload,
-            "bank_passbook_upload": self.bank_passbook_upload,
             "registration_certificate_upload": self.registration_certificate_upload,
+            "bank_account_no": self.bank_account_no,
+            "bank_ifsc_code": self.bank_ifsc_code,
+            "bank_name": self.bank_name,
+            "bank_account_name": self.bank_account_name,
             "status": self.status,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
