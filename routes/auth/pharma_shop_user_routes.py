@@ -268,3 +268,4 @@ async def delete_shop_by_id(shop_id: str, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Shop deleted successfully"}
+
