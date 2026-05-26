@@ -2,6 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Header, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.attributes import flag_modified
 from typing import Optional
 
 from db import get_db
@@ -100,15 +101,18 @@ async def add_item_to_cart(
     
     # Check if item already exists in cart
     existing_item = None
-    for item in cart.items:
+    item_index = None
+    for idx, item in enumerate(cart.items):
         if item["medicine_id"] == medicine_id:
             existing_item = item
+            item_index = idx
             break
     
     if existing_item:
-        # Update quantity
+        # Update quantity - modify item and reassign list
         existing_item["quantity"] = quantity
         existing_item["subtotal"] = round(quantity * existing_item["price_per_unit"], 2)
+        cart.items[item_index] = existing_item
     else:
         # Add new item
         new_item = {
@@ -120,6 +124,9 @@ async def add_item_to_cart(
             "medicine_photo": medicine.medicine_photo
         }
         cart.items.append(new_item)
+    
+    # Explicitly mark items column as modified for SQLAlchemy
+    flag_modified(cart, "items")
     
     # Recalculate total price
     cart.total_price = calculate_total_price(cart.items)
@@ -161,7 +168,7 @@ async def update_item_quantity(
     if not cart:
         raise HTTPException(status_code=404, detail="Cart not found")
     
-    # Find item in cart
+    # Find item in cart and update
     item_found = False
     for item in cart.items:
         if item["medicine_id"] == medicine_id:
@@ -172,6 +179,9 @@ async def update_item_quantity(
     
     if not item_found:
         raise HTTPException(status_code=404, detail="Medicine not found in cart")
+    
+    # Explicitly mark items column as modified for SQLAlchemy
+    flag_modified(cart, "items")
     
     # Recalculate total price
     cart.total_price = calculate_total_price(cart.items)
