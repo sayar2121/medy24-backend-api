@@ -22,6 +22,8 @@ class PharmaShopUser(Base):
     bank_ifsc_code = Column(String, nullable=True)
     bank_name = Column(String, nullable=True)
     bank_account_name = Column(String, nullable=True)
+    latitude = Column(String, nullable=True)
+    longitude = Column(String, nullable=True)
     status = Column(String, default="pending", nullable=False)  # active, terminated, pending, suspended
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -46,6 +48,8 @@ class PharmaShopUser(Base):
             "bank_ifsc_code": self.bank_ifsc_code,
             "bank_name": self.bank_name,
             "bank_account_name": self.bank_account_name,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
             "status": self.status,
             "created_at": self.created_at,
             "updated_at": self.updated_at,

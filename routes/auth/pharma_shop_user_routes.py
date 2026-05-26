@@ -16,6 +16,8 @@ async def signup(
     shop_phone_no: str = Form(...),
     shop_email: str = Form(...),
     shop_password: str = Form(...),
+    latitude: str = Form(...),
+    longitude: str = Form(...),
     drug_license: UploadFile = File(...),
     pan_card: UploadFile = File(...),
     registration_certificate: UploadFile = File(...),
@@ -62,6 +64,8 @@ async def signup(
         shop_password=shop_password,
         whatsapp_number=whatsapp_number,
         gstin_no=gstin_no,
+        latitude=latitude,
+        longitude=longitude,
         drug_license_upload=drug_license_url,
         pan_card_upload=pan_card_url,
         registration_certificate_upload=registration_cert_url,
@@ -157,6 +161,8 @@ async def update_shop_by_id(
     shop_alternative_phone_no: Optional[str] = Form(None),
     whatsapp_number: Optional[str] = Form(None),
     gstin_no: Optional[str] = Form(None),
+    latitude: Optional[str] = Form(None),
+    longitude: Optional[str] = Form(None),
     shop_password: Optional[str] = Form(None),
     bank_account_no: Optional[str] = Form(None),
     bank_ifsc_code: Optional[str] = Form(None),
@@ -189,6 +195,10 @@ async def update_shop_by_id(
         shop.whatsapp_number = whatsapp_number
     if gstin_no is not None:
         shop.gstin_no = gstin_no
+    if latitude is not None:
+        shop.latitude = latitude
+    if longitude is not None:
+        shop.longitude = longitude
     if shop_password is not None:
         shop.shop_password = shop_password
     if bank_account_no is not None:
