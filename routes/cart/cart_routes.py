@@ -144,7 +144,7 @@ async def add_item_to_cart(
 @router.put("/update-item/{medicine_id}")
 async def update_item_quantity(
     medicine_id: str,
-    quantity: int = Body(...),
+    quantity: int = Body(..., embed=True),
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -215,11 +215,14 @@ async def remove_item_from_cart(
         raise HTTPException(status_code=404, detail="Cart not found")
     
     # Find and remove item
-    item_found = False
+    original_length = len(cart.items)
     cart.items = [item for item in cart.items if item["medicine_id"] != medicine_id]
     
-    if len(cart.items) == len(db.query(Cart).filter(Cart.customer_id == customer_id).first().items):
+    if len(cart.items) == original_length:
         raise HTTPException(status_code=404, detail="Medicine not found in cart")
+        
+    # Explicitly mark items column as modified for SQLAlchemy
+    flag_modified(cart, "items")
     
     # Recalculate total price
     cart.total_price = calculate_total_price(cart.items)

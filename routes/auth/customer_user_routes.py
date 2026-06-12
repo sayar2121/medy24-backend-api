@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field
 import jwt
+from sqlalchemy.orm.attributes import flag_modified
 import os
 from datetime import datetime, timedelta
 
@@ -433,6 +434,7 @@ async def add_address(
     new_address = build_saved_address(address_data, len(user.saved_addresses) + 1)
     
     user.saved_addresses.append(new_address)
+    flag_modified(user, "saved_addresses")
     db.commit()
     db.refresh(user)
     
@@ -480,8 +482,8 @@ async def delete_address(
     if not user.saved_addresses:
         raise HTTPException(status_code=404, detail="No addresses found")
     
-    # Find and remove the address
     user.saved_addresses = [addr for addr in user.saved_addresses if addr.get("id") != address_id]
+    flag_modified(user, "saved_addresses")
     
     db.commit()
     db.refresh(user)
