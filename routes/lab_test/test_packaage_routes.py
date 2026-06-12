@@ -100,6 +100,60 @@ async def get_package_by_id(package_id: str, db: Session = Depends(get_db)):
     
     return package_dict
 
+@router.get("/get-all")
+async def get_all_test_packages(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, le=100),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all test packages with pagination and enriched test details
+    """
+    offset = (page - 1) * limit
+    
+    packages = db.query(TestPackage).offset(offset).limit(limit).all()
+    
+    # Enrich test details with TestInventory and CoreLabTest information
+    enriched_packages = []
+    for package in packages:
+        enriched_test_details = []
+        for test_id in package.test_details:
+            test_inv = db.query(TestInventory).filter(TestInventory.test_id == test_id).first()
+            if test_inv:
+                core_test = db.query(CoreLabTest).filter(
+                    CoreLabTest.core_test_id == test_inv.core_test_id
+                ).first()
+                
+                enriched_detail = {
+                    "test_id": test_inv.test_id,
+                    "core_test_id": test_inv.core_test_id,
+                    "test_description": test_inv.description if hasattr(test_inv, 'description') else None,
+                    "test_parameters": test_inv.parameters if hasattr(test_inv, 'parameters') else [],
+                    "test_precautions": test_inv.precautions if hasattr(test_inv, 'precautions') else [],
+                    "test_photo_url": test_inv.test_photo_url if hasattr(test_inv, 'test_photo_url') else None,
+                    "price": test_inv.price,
+                    "sample_collection_time": test_inv.sample_collection_time,
+                    "report_delivery_time": test_inv.report_delivery_time
+                }
+                
+                if core_test:
+                    enriched_detail["core_test_details"] = core_test.to_dict()
+                
+                enriched_test_details.append(enriched_detail)
+        
+        package_dict = package.to_dict()
+        package_dict["test_details"] = enriched_test_details
+        enriched_packages.append(package_dict)
+    
+    total = db.query(TestPackage).count()
+    
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "data": enriched_packages
+    }
+
 @router.get("/get-by-lab/{lab_id}")
 async def get_packages_by_lab_id(
     lab_id: str,

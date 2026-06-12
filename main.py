@@ -45,14 +45,14 @@ async def lifespan(app: FastAPI):
                     firebase_admin.initialize_app(cred)
                 print("✅ Firebase initialized successfully")
             except Exception as e:
-                print(f"⚠️ Firebase initialization warning: {e}")
+                print(f"Firebase initialization warning: {e}")
         else:
-            print("⚠️ Firebase credentials path not found. Phone auth will be unavailable.")
+            print("Firebase credentials path not found. Phone auth will be unavailable.")
     else:
-        print("⚠️ Firebase Admin SDK not installed.")
+        print("Firebase Admin SDK not installed.")
     
-    print("🚀 Medy24 Backend is starting up...")
-    print("🔗 Documentation available at http://localhost:8000/docs")
+    print("Medy24 Backend is starting up...")
+    print("Documentation available at http://localhost:8000/docs")
     yield
     # Shutdown logic (if any)
 

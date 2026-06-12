@@ -170,7 +170,7 @@ async def get_all_medicines(
         "total": total,
         "page": page,
         "limit": limit,
-        "data": medicines
+        "data": [medicine.to_dict() for medicine in medicines]
     }
 
 @router.get("/search")
