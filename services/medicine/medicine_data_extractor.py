@@ -8,11 +8,10 @@ from services.medicine.medicine_id_generator import generate_medicine_id
 
 def calculate_final_selling_price(mrp: float, discount_percent: float = None) -> float:
     """
-    Calculate final selling price based on MRP and discount percent
+    Calculate final selling price based on MRP.
+    Individual discounts have been removed globally. final_selling_price = mrp.
     """
-    if discount_percent is None or discount_percent == "":
-        return mrp
-    return mrp - (mrp * float(discount_percent) / 100)
+    return mrp
 
 
 def parse_precautions(precautions_str: str) -> list:

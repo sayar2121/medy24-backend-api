@@ -54,12 +54,29 @@ def get_or_create_cart(customer_id: str, db: Session) -> Cart:
 
 def calculate_total_price(items: list) -> float:
     """
-    Calculate total price from cart items
+    Calculate total price from cart items, applying order value discount:
+    - ₹0 – ₹499: No Discount
+    - ₹500 – ₹999: 3% Instant Discount
+    - ₹1000+: 5% Instant Discount
+    - Plus ₹10 Platform Fee and ₹10 Delivery Fee if cart is not empty.
     """
+    if not items:
+        return 0.0
+
     total = 0.0
     for item in items:
         total += item.get("subtotal", 0.0)
-    return round(total, 2)
+        
+    discount = 0.0
+    if 500 <= total < 1000:
+        discount = total * 0.03
+    elif total >= 1000:
+        discount = total * 0.05
+        
+    platform_fee = 10.0
+    delivery_fee = 10.0
+        
+    return round(total - discount + platform_fee + delivery_fee, 2)
 
 
 @router.post("/add-item")
@@ -338,8 +355,22 @@ async def get_cart_summary(
             "is_empty": True
         }
     
+    item_total = sum(item.get("subtotal", 0.0) for item in cart.items)
+    discount = 0.0
+    if 500 <= item_total < 1000:
+        discount = item_total * 0.03
+    elif item_total >= 1000:
+        discount = item_total * 0.05
+
+    platform_fee = 10.0 if cart.items else 0.0
+    delivery_fee = 10.0 if cart.items else 0.0
+
     return {
         "total_items": len(cart.items),
+        "item_total": round(item_total, 2),
+        "order_value_discount": round(discount, 2),
+        "platform_fee": platform_fee,
+        "delivery_fee": delivery_fee,
         "total_price": cart.total_price,
         "is_empty": len(cart.items) == 0
     }

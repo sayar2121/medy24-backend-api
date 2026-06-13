@@ -37,13 +37,10 @@ def process_csv_in_background(file_path: str, job_id: str, db: Session):
 
 def calculate_final_selling_price(mrp: float, discount_percent: Optional[float] = None) -> float:
     """
-    Calculate final selling price based on MRP and discount percent
-    If discount_percent is None, final_selling_price = mrp
-    Otherwise, final_selling_price = mrp - (mrp * discount_percent / 100)
+    Calculate final selling price based on MRP.
+    Individual discounts have been removed globally. final_selling_price = mrp.
     """
-    if discount_percent is None:
-        return mrp
-    return mrp - (mrp * discount_percent / 100)
+    return mrp
 
 @router.post("/create")
 async def upload_medicines_from_csv(

@@ -39,8 +39,8 @@ async def create_test_package(
     # Generate package ID
     package_id = generate_package_id(lab_id)
     
-    # Calculate final price after discount
-    package_final_price = package_market_price - (package_market_price * discount_percentage / 100)
+    # Calculate final price (discounts globally removed)
+    package_final_price = package_market_price
     
     new_package = TestPackage(
         package_id=package_id,
@@ -259,11 +259,10 @@ async def update_package_by_id(
     if discount_percentage is not None:
         package.discount_percentage = discount_percentage
     
-    # Recalculate final price if price or discount changed
+    # Recalculate final price if price changed (discounts globally removed)
     if package_market_price is not None or discount_percentage is not None:
         final_price = package_market_price if package_market_price is not None else package.package_market_price
-        final_discount = discount_percentage if discount_percentage is not None else package.discount_percentage
-        package.package_final_price = final_price - (final_price * final_discount / 100)
+        package.package_final_price = final_price
     
     db.commit()
     db.refresh(package)

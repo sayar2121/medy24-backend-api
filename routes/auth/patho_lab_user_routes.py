@@ -106,11 +106,11 @@ async def get_by_id(lab_id: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Lab not found")
     
-    if user.status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail=f"Access denied. Account status: {user.status}"
-        )
+    # if user.status != "active":
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN, 
+    #         detail=f"Access denied. Account status: {user.status}"
+    #     )
         
     return user
     
